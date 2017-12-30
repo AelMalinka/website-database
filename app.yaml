@@ -1,0 +1,61 @@
+# Copyright 2017 (c) Michael Thomas (malinka) <malinka@entropy-development.com>
+# Distributed under the terms of the GNU Affero General Public License v3
+
+apiVersion: apps/v1beta1
+kind: Deployment
+metadata:
+    name: database
+spec:
+    template:
+        metadata:
+            labels:
+                app: database
+        spec:
+            volumes:
+            - name: postgres-data
+              emptyDir: {}
+            initContainers:
+            - name: database-init
+              image: aelmalinka/database-init
+              volumeMounts:
+              - mountPath: /postgres
+                name: postgres-data
+              env:
+              - name: PGDATABASE
+                valueFrom:
+                    configMapKeyRef:
+                        name: website-config
+                        key: db.name
+              - name: PGUSER
+                valueFrom:
+                    secretKeyRef:
+                        name: website-secret
+                        key: db.user
+              - name: PGPASSWORD
+                valueFrom:
+                    secretKeyRef:
+                        name: website-secret
+                        key: db.pass
+            containers:
+            - name: database
+              image: aelmalinka/database
+              volumeMounts:
+              - mountPath: /postgres
+                name: postgres-data
+              ports:
+              - containerPort: 5432
+---
+apiVersion: v1
+kind: Service
+metadata:
+    name: database
+    labels:
+        app: database
+spec:
+    type: NodePort
+    ports:
+    - port: 5432
+      protocol: TCP
+      name: postgres
+    selector:
+        app: database
